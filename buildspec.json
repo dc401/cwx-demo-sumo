@@ -1,0 +1,5 @@
+{
+  "detection": "./detections/tf-winevent-new-useradded/tf-winevent-new-useradded.tf",
+  "test": "./tests/winevent-4720-log-snip.log"
+}
+
