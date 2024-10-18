@@ -48,7 +48,9 @@ jobs:
           terraform init
           terraform plan
       - name: Run Synthetic AI tests
+        #for some reason fastapi_poe doesnt always work in venv as of recent 2024-Oct-17
         run: |
+          pip install fastapi_poe
           python ./sl-hcl-synth-test.py
       - name: Deploy Use Cases
         run: |
