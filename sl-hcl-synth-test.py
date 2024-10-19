@@ -5,17 +5,17 @@ import fastapi_poe as fp
 #read secrets from environment variables
 api_key = os.environ['POE_API']
 
+
 #need to use async because bot will have multi-line outputs that need to complete
 #https://developer.poe.com/server-bots/accessing-other-bots-on-poe
-async def get_responses(api_key, messages):
+#use the official botname case sensitive from poe or your custom name of one you created
+async def get_responses(api_key, messages, bot_name="Claude-3.5-Sonnet"):
   response = ""
-  async for partial in fp.get_bot_response(
-      messages=messages,
-      #bot_name="<YOUR-PUBLIC-BOT-NAME>",
-      #bot_name="SL-Simulator-Bot",
-      bot_name="Claude-3.5-Sonnet",
-      api_key=api_key,
-      temperature=0.15):
+  print(f"Using bot: {bot_name}")
+  async for partial in fp.get_bot_response(messages=messages,
+                                           bot_name=bot_name,
+                                           api_key=api_key,
+                                           temperature=0.15):
     if isinstance(partial, fp.PartialResponse) and partial.text:
       response += partial.text
 
@@ -34,8 +34,8 @@ test_payload = open(test_path, 'r').read()
 
 #parse out the query logic only DOTall matches multiple lines
 regex_pattern = r'query\s{0,6}=\s{0,6}"(.{10,300})"'
-#query_payload = re.search(regex_pattern, detection_payload)
-query_payload = re.search(regex_pattern, detection_payload, re.DOTALL)
+query_payload = re.search(regex_pattern, detection_payload)
+#query_payload = re.search(regex_pattern, detection_payload, re.DOTALL)
 #print(query_payload.group(1))
 if query_payload:
   query_payload = query_payload.group(1)
@@ -54,23 +54,43 @@ message = fp.ProtocolMessage(role="user", content=(prompt_text))
 
 #main driver
 if __name__ == "__main__":
-  #event loop response
-  bot_response = asyncio.run(get_responses(api_key, [message]))
-  print(bot_response)
-  if 'HIGH' in bot_response:
-    print('PASS: AI Evaluation - HIGH')
-    exit()
-  elif 'MEDIUM' in bot_response:
-    print('CAUTION: AI Evaluation - MEDIUM')
-    warnings.warn('CAUTION: AI Evaluation - MEDIUM')
-  elif 'LOW' in bot_response:
-    print('FAIL: AI Evaluation - LOW')
-    raise ValueError(
-        'TEST FAIL: AI Low probability Rating. Please check test log and query.')
+
+  #initialize variables
+  high_count = 0
+  medium_count = 0
+  low_count = 0
+  unknown_count = 0
+
+  #collect multiple bot response
+  claude_response = asyncio.run(get_responses(api_key, [message]))
+  print("Claude Response: " + claude_response)
+  gemini_response = asyncio.run(
+      get_responses(api_key, [message], bot_name="Gemini-1.5-Pro"))
+  print("Gemini Response: " + gemini_response)
+
+  #count the response types from each bot equal weighting
+  combined_response = claude_response + ' ' + gemini_response
+  if '/HIGH/' in combined_response:
+    high_count = combined_response.count('/HIGH/')
+  if '/MEDIUM/' in combined_response:
+    medium_count = combined_response.count('/MEDIUM/')
+  if '/LOW/' in combined_response:
+    low_count = combined_response.count('/LOW/')
+  if '/UNKNOWN/' in combined_response:
+    unknown_count = combined_response.count('/UNKNOWN/')
+
+  #eval conditions
+  if high_count > 1:
+    print('PASS: AI Evaluation are both high.')
+    exit(0)
+  elif medium_count > 0 and high_count > 0:
+    print('WARN: AI Evaluation high and medium')
+    warnings.warn('WARN: AI Evaluation high and medium', stacklevel=1)
+    exit(0)
+  elif medium_count > 2 or low_count > 0:
+    print('FAIL: AI evaluation confidence not high enough.')
     exit(1)
-  elif 'UNKNOWN' in bot_response:
-    print('FAIL: AI Evaluation - UNKNOWN')
-    raise ValueError(
-        'TEST FAIL: AI cannot determine detection. Please check test log and query.'
-    )
+  elif unknown_count > 0:
+    print('FAIL: AI evaluation unknown.')
     exit(1)
+
