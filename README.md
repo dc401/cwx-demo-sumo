@@ -1,3 +1,4 @@
+[![sumo-tf-deploy](https://github.com/dc401/cwx-demo-sumo/actions/workflows/sumo-tf-deploy.yml/badge.svg)](https://github.com/dc401/cwx-demo-sumo/actions/workflows/sumo-tf-deploy.yml)
 # cybwerwox-demo-sumo
 This repo is for the Detection as Code CI/CD pipeline demo in the Cyberwox series by Day Johnson and Dennis Chow for Sumo Logic demonstration using synthetic AI testing.
 
